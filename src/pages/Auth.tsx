@@ -24,38 +24,80 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully signed in.",
-        });
+        
+        if (data.user) {
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully signed in.",
+          });
+        }
       } else {
-        const redirectUrl = `${window.location.origin}/`;
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: redirectUrl,
+            emailRedirectTo: `${window.location.origin}`,
           },
         });
         if (error) throw error;
+        
+        // Check if email confirmation is required
+        if (data.user && !data.session) {
+          toast({
+            title: "Check your email",
+            description: "Please check your email and click the confirmation link to complete your registration.",
+          });
+          return;
+        }
         toast({
-          title: "Account created!",
-          description: "Please check your email to verify your account.",
+          title: "Welcome!",
+          description: "Your account has been created successfully.",
         });
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
+      let errorMessage = error.message;
+      
+      // Handle specific error cases
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and click the confirmation link before signing in.';
+      } else if (error.message?.includes('User already registered')) {
+        errorMessage = 'An account with this email already exists. Please sign in instead.';
+      }
+      
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
