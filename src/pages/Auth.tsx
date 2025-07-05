@@ -93,6 +93,8 @@ const Auth = () => {
         errorMessage = 'Please check your email and click the confirmation link before signing in.';
       } else if (error.message?.includes('User already registered')) {
         errorMessage = 'An account with this email already exists. Please sign in instead.';
+      } else if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Connection error. Please check your internet connection and try again.';
       }
       
       toast({
