@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,28 +48,41 @@ const Auth = () => {
 
     try {
       if (isLogin) {
+        console.log('Attempting to sign in with:', email);
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
-        if (error) throw error;
         
+        if (error) {
+          console.error('Sign in error:', error);
+          throw error;
+        }
+        
+        console.log('Sign in successful:', data);
         if (data.user) {
           toast({
             title: "Welcome back!",
             description: "You have successfully signed in.",
           });
+          navigate("/");
         }
       } else {
+        console.log('Attempting to sign up with:', email);
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}`,
+            emailRedirectTo: `${window.location.origin}/`,
           },
         });
-        if (error) throw error;
         
+        if (error) {
+          console.error('Sign up error:', error);
+          throw error;
+        }
+        
+        console.log('Sign up response:', data);
         // Check if email confirmation is required
         if (data.user && !data.session) {
           toast({
@@ -77,14 +91,18 @@ const Auth = () => {
           });
           return;
         }
-        toast({
-          title: "Welcome!",
-          description: "Your account has been created successfully.",
-        });
+        
+        if (data.user) {
+          toast({
+            title: "Welcome!",
+            description: "Your account has been created successfully.",
+          });
+          navigate("/");
+        }
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      let errorMessage = error.message;
+      console.error('Auth error details:', error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
       
       // Handle specific error cases
       if (error.message?.includes('Invalid login credentials')) {
@@ -93,8 +111,12 @@ const Auth = () => {
         errorMessage = 'Please check your email and click the confirmation link before signing in.';
       } else if (error.message?.includes('User already registered')) {
         errorMessage = 'An account with this email already exists. Please sign in instead.';
-      } else if (error.message?.includes('Failed to fetch')) {
+      } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
         errorMessage = 'Connection error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('signup is disabled')) {
+        errorMessage = 'Account creation is currently disabled. Please contact support.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       toast({
@@ -109,9 +131,9 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">
+      <Card className="w-full max-w-md animate-fade-in">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             {isLogin ? "Welcome Back" : "Create Account"}
           </CardTitle>
           <CardDescription className="text-center">
@@ -130,6 +152,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="transition-all duration-200 focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -139,17 +162,29 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="transition-all duration-200 focus:ring-2 focus:ring-primary"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : (isLogin ? "Sign In" : "Sign Up")}
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-200" 
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Loading...
+                </div>
+              ) : (
+                isLogin ? "Sign In" : "Sign Up"
+              )}
             </Button>
           </form>
           <div className="mt-4 text-center">
             <Button
               variant="link"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm"
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
               {isLogin 
                 ? "Don't have an account? Sign up" 
